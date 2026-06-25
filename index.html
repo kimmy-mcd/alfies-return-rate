@@ -20,6 +20,7 @@
   .legend-item.off { opacity: 0.38; }
   .legend-item input[type="checkbox"] { accent-color: currentColor; width: 13px; height: 13px; cursor: pointer; flex-shrink: 0; }
   .swatch { width: 26px; height: 3px; display: inline-block; }
+  .swatch-box { width: 14px; height: 14px; display: inline-block; border-radius: 3px; }
   .swatch-dashed { border-top: 2px dashed; height: 0; margin-top: 1px; }
   .chart-wrap { position: relative; width: 100%; height: 380px; }
   .loading { display: flex; align-items: center; justify-content: center; height: 380px; font-size: 14px; color: #888; }
@@ -35,6 +36,17 @@
   .stat-delta.up   { background: #e6f4ed; color: #1d8348; }
   .stat-delta.down { background: #fdf0ee; color: #c0392b; }
   .stat-delta.flat { background: #f2f2f2; color: #666; }
+  /* Postcode table */
+  .pc-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+  .pc-table th { text-align: left; padding: 7px 12px; font-weight: 500; color: #888; font-size: 11px; letter-spacing: 0.04em; border-bottom: 1.5px solid #e8e8e8; }
+  .pc-table th.r { text-align: right; }
+  .pc-table td { padding: 9px 12px; border-bottom: 1px solid #f2f2f2; vertical-align: middle; }
+  .pc-table tr:last-child td { border-bottom: none; }
+  .pc-table td.r { text-align: right; color: #555; }
+  .pc-rank { color: #ccc; font-size: 11px; width: 20px; display: inline-block; }
+  .pc-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .pc-bar-bg { height: 6px; background: #f0f0f0; border-radius: 3px; flex: 1; overflow: hidden; min-width: 60px; }
+  .pc-bar-fill { height: 100%; background: #3266ad; border-radius: 3px; }
 </style>
 </head>
 <body>
@@ -71,11 +83,34 @@
   <canvas id="chart2"></canvas>
 </div>
 
-<!-- ── Chart 3: Total covers per month ──────────────────────────────────────── -->
+<!-- ── Chart 3: Total covers per month (stacked: dining + bar) ──────────────── -->
 <h2 id="heading3" style="display:none;">Total covers per month</h2>
-<p class="subtitle" id="subtitle3" style="display:none;">All completed reservations &middot; any guest status</p>
+<p class="subtitle" id="subtitle3" style="display:none;">Completed reservations by section &middot; dining room (tables 100&ndash;400) &middot; bar (tables 1&ndash;35)</p>
+<div class="legend" id="legend3" style="display:none;">
+  <label class="legend-item" data-idx="0"><input type="checkbox" checked><span class="swatch-box" style="background:rgba(50,102,173,0.7)"></span> Dining room</label>
+  <label class="legend-item" data-idx="1"><input type="checkbox" checked><span class="swatch-box" style="background:rgba(29,158,117,0.7)"></span> Bar</label>
+</div>
 <div class="chart-wrap" id="chartWrap3" style="display:none;">
   <canvas id="chart3"></canvas>
+</div>
+
+<!-- ── Postcode table ────────────────────────────────────────────────────────── -->
+<h2 id="heading4" style="display:none;">Top 15 postcodes</h2>
+<p class="subtitle" id="subtitle4" style="display:none;">By completed reservation count</p>
+<div id="postcodeWrap" style="display:none;">
+  <table class="pc-table" id="postcodeTable">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Suburb</th>
+        <th>Postcode</th>
+        <th class="r">Reservations</th>
+        <th class="r">Covers</th>
+        <th style="width:180px;"></th>
+      </tr>
+    </thead>
+    <tbody id="postcodeTbody"></tbody>
+  </table>
 </div>
 
 <p class="footer">Return rate = % of completed reservations where guest&rsquo;s mobile had appeared in a prior completed reservation. New guest = first-ever appearance of that mobile. New guest % = new guests &divide; all mobile-matched reservations that month. Data from September 2023 onwards.</p>
@@ -89,6 +124,53 @@ function fmtLabel(ym) {
   const [y, m] = ym.split('-');
   return MONTHS[+m - 1] + ' ' + y;
 }
+
+// Australian postcode → suburb lookup
+const SUBURB = {
+  '2000':'Sydney CBD','2006':'University of Sydney','2007':'Ultimo','2008':'Chippendale',
+  '2009':'Pyrmont','2010':'Surry Hills','2011':'Potts Point','2012':'Waterloo',
+  '2013':'Erskineville','2015':'Alexandria','2016':'Redfern','2017':'Waterloo / Zetland',
+  '2018':'Rosebery','2019':'Botany','2020':'Mascot','2021':'Paddington',
+  '2022':'Bondi Junction','2023':'Bellevue Hill','2024':'Bronte','2025':'Woollahra',
+  '2026':'Bondi Beach','2027':'Double Bay','2028':'Edgecliff','2029':'Rose Bay',
+  '2030':'Vaucluse','2031':'Coogee','2032':'Kingsford','2033':'Kensington',
+  '2034':'Clovelly','2035':'Maroubra','2036':'Matraville','2037':'Glebe',
+  '2038':'Annandale','2039':'Rozelle','2040':'Leichhardt','2041':'Balmain',
+  '2042':'Newtown','2043':'Tempe','2044':'Sydenham','2045':'Haberfield',
+  '2046':'Concord','2047':'Drummoyne','2048':'Stanmore','2049':'Petersham',
+  '2050':'Camperdown','2060':'North Sydney','2061':'Kirribilli','2062':'Cammeray',
+  '2063':'Northbridge','2064':'St Leonards','2065':'Crows Nest','2066':'Lane Cove',
+  '2067':'Chatswood','2068':'Willoughby','2069':'Roseville','2070':'Lindfield',
+  '2071':'Killara','2072':'Gordon','2073':'Pymble','2074':'St Ives',
+  '2075':'St Ives Chase','2076':'Turramurra','2077':'Wahroonga','2079':'Hornsby',
+  '2085':'Seaforth / Manly','2086':'Forestville','2087':'Frenchs Forest','2088':'Mosman',
+  '2089':'Neutral Bay','2090':'Cremorne','2091':'Clifton Gardens','2092':'Seaforth',
+  '2093':'Balgowlah','2094':'Fairlight','2095':'Manly','2096':'Queenscliff',
+  '2097':'Curl Curl','2098':'Collaroy','2099':'Dee Why','2100':'Brookvale',
+  '2101':'Narrabeen','2102':'Warriewood','2103':'Mona Vale','2104':'Bayview',
+  '2106':'Newport','2107':'Avalon Beach','2108':'Palm Beach','2110':'Hunters Hill',
+  '2111':'Rhodes','2112':'Ryde','2113':'Meadowbank','2114':'Ermington',
+  '2115':'West Ryde','2116':'Eastwood','2117':'Epping','2118':'Cherrybrook',
+  '2119':'Beecroft','2120':'Thornleigh','2121':'Pennant Hills','2122':'Eastwood',
+  '2125':'West Pennant Hills','2126':'Cherrybrook','2127':'Sydney Olympic Park',
+  '2128':'Silverwater','2130':'Summer Hill','2131':'Ashfield','2132':'Burwood',
+  '2133':'Croydon','2134':'Strathfield','2135':'Homebush','2137':'Concord West',
+  '2138':'Lidcombe','2140':'Homebush West','2141':'Granville','2142':'Merrylands',
+  '2143':'Fairfield','2144':'Auburn','2145':'Westmead','2147':'Blacktown',
+  '2148':'Blacktown','2150':'Parramatta','2151':'North Rocks','2152':'Baulkham Hills',
+  '2153':'Bella Vista','2154':'Castle Hill','2155':'Kellyville','2156':'Annangrove',
+  '2157':'Kenthurst','2158':'Dural','2160':'Merrylands','2161':'Granville',
+  '2162':'Guildford','2165':'Fairfield','2166':'Cabramatta','2170':'Liverpool',
+  '2190':'Marrickville','2191':'Dulwich Hill','2192':'Ashbury','2193':'Canterbury',
+  '2194':'Campsie','2195':'Lakemba','2196':'Roselands','2199':'Bankstown',
+  '2200':'Bankstown','2203':'Dulwich Hill','2204':'Marrickville','2205':'Arncliffe',
+  '2206':'Earlwood','2207':'Bexley','2208':'Kingsgrove','2209':'Beverly Hills',
+  '2210':'Lugarno','2216':'Rockdale','2217':'Kogarah','2220':'Hurstville',
+  '2225':'Como','2226':'Jannali','2227':'Miranda','2228':'Gymea',
+  '2229':'Caringbah','2230':'Cronulla','2232':'Sutherland','2250':'Gosford',
+  '2500':'Wollongong','2502':'Fairy Meadow','2515':'Thirroul','2560':'Campbelltown',
+  '3000':'Melbourne CBD','4000':'Brisbane CBD','5000':'Adelaide CBD','6000':'Perth CBD',
+};
 
 function bindLegend(legendId, chartInstance) {
   document.getElementById(legendId).addEventListener('change', e => {
@@ -111,14 +193,25 @@ const TOOLTIP_STYLE = {
 async function load() {
   try {
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-    const { data: rows, error } = await client.rpc('get_alfies_return_rate');
-    if (error) throw new Error(error.message);
+
+    const [rr, bd, pc] = await Promise.all([
+      client.rpc('get_alfies_return_rate'),
+      client.rpc('get_alfies_monthly_breakdown'),
+      client.rpc('get_alfies_top_postcodes'),
+    ]);
+    if (rr.error) throw new Error(rr.error.message);
+    if (bd.error) throw new Error(bd.error.message);
+    if (pc.error) throw new Error(pc.error.message);
+
+    const rows   = rr.data;
+    const bdRows = bd.data;
+    const pcRows = pc.data;
+
     if (!rows || rows.length === 0) throw new Error('No data returned');
 
     const LOW_VOL = 100;
     const labels  = rows.map(r => fmtLabel(r.month));
 
-    // ── KPI stat cards ─────────────────────────────────────────────────────────
     const now          = new Date();
     const currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     const completeRows = rows.filter(r => r.month < currentMonth && +r.total_matched >= 50);
@@ -130,10 +223,9 @@ async function load() {
       const priorAvg   = priorRows.length > 0 ? priorRows.reduce((s, r) => s + +r.pct_12m, 0) / priorRows.length : null;
       const delta      = priorAvg !== null ? latestPct - priorAvg : null;
       const dCls       = delta === null ? 'flat' : delta > 0.5 ? 'up' : delta < -0.5 ? 'down' : 'flat';
-      const dSign      = delta > 0 ? '+' : '';
+      const dSIgn      = delta > 0 ? '+' : '';
       const priorLbl   = priorRows.length > 0 ? fmtLabel(priorRows[0].month) + ' – ' + fmtLabel(priorRows[priorRows.length - 1].month) : '';
 
-      // New guests % = new / (new + matched) = new / mobile-matched total
       function newGuestPct(r) {
         const mt = +r.new_guests + +r.total_matched;
         return mt > 0 ? +r.new_guests / mt * 100 : null;
@@ -175,7 +267,6 @@ async function load() {
       `;
     }
 
-    // ── Chart 1: Return rate % lines + new guests % (right axis) ──────────────
     const d12      = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.pct_12m);
     const d6       = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.pct_6m);
     const d3       = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.pct_3m);
@@ -190,174 +281,85 @@ async function load() {
 
     const chart1 = new Chart(document.getElementById('chart1'), {
       type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label: '12m return %', data: d12,     borderColor: '#3266ad', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct' },
-          { label: '6m return %',  data: d6,      borderColor: '#1D9E75', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct' },
-          { label: '3m return %',  data: d3,      borderColor: '#D85A30', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct' },
-          { label: '1m return %',  data: d1,      borderColor: '#888780', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct', borderDash: [4,3] },
-          { label: 'New guests %', data: newGPct, borderColor: '#BA7517', backgroundColor: 'rgba(186,117,23,0.05)', borderWidth: 1.5, borderDash: [5,4], pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: true, spanGaps: false, yAxisID: 'yNewPct' }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            ...TOOLTIP_STYLE,
-            callbacks: {
-              title: items => items[0].label,
-              label: item => `  ${item.dataset.label}: ${item.parsed.y != null ? item.parsed.y.toFixed(1) + '%' : 'n/a'}`
-            }
-          }
-        },
-        scales: {
-          x: { ticks: { maxTicksLimit: 14, maxRotation: 45, font: { size: 11 }, color: '#888' }, grid: { display: false } },
-          yPct: {
-            type: 'linear', position: 'left', min: 0, max: 40,
-            ticks: { callback: v => v + '%', font: { size: 11 }, color: '#555', stepSize: 5 },
-            grid: { color: 'rgba(0,0,0,0.07)' },
-            title: { display: true, text: 'Return rate', font: { size: 11 }, color: '#555' }
-          },
-          yNewPct: {
-            type: 'linear', position: 'right', min: 0, max: 100,
-            ticks: { callback: v => v + '%', font: { size: 11 }, color: '#BA7517', stepSize: 20 },
-            grid: { display: false },
-            title: { display: true, text: 'New guests %', font: { size: 11 }, color: '#BA7517' }
-          }
-        }
-      }
+      data: { labels, datasets: [
+        { label: '12m return %', data: d12, borderColor: '#3266ad', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct' },
+        { label: '6m return %', data: d6, borderColor: '#1D9E75', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct' },
+        { label: '3m return %', data: d3, borderColor: '#D85A30', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct' },
+        { label: '1m return %', data: d1, borderColor: '#888780', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct', borderDash: [4,3] },
+        { label: 'New guests %', data: newGPct, borderColor: '#BA7517', backgroundColor: 'rgba(186,117,23,0.05)', borderWidth: 1.5, borderDash: [5,4], pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: true, spanGaps: false, yAxisID: 'yNewPct' }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: false }, tooltip: { ...TOOLTIP_STYLE, callbacks: { title: items => items[0].label, label: item => `  ${item.dataset.label}: ${item.parsed.y != null ? item.parsed.y.toFixed(1) + '%' : 'n/a'}` } } },
+        scales: { x: { ticks: { maxTicksLimit: 14, maxRotation: 45, font: { size: 11 }, color: '#888' }, grid: { display: false } },
+          yPct: { type: 'linear', position: 'left', min: 0, max: 40, ticks: { callback: v => v + '%', font: { size: 11 }, color: '#555', stepSize: 5 }, grid: { color: 'rgba(0,0,0,0.07)' }, title: { display: true, text: 'Return rate', font: { size: 11 }, color: '#555' } },
+          yNewPct: { type: 'linear', position: 'right', min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 11 }, color: '#BA7517', stepSize: 20 }, grid: { display: false }, title: { display: true, text: 'New guests %', font: { size: 11 }, color: '#BA7517' } } } }
     });
-
     bindLegend('legend1', chart1);
 
-    // ── Chart 2: Absolute guest counts by return window + new guests (right axis) ──
-    const c12  = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_12m / 100 * +r.total_matched));
-    const c6   = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_6m  / 100 * +r.total_matched));
-    const c3   = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_3m  / 100 * +r.total_matched));
-    const c1   = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_1m  / 100 * +r.total_matched));
+    const c12 = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_12m / 100 * +r.total_matched));
+    const c6  = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_6m  / 100 * +r.total_matched));
+    const c3  = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_3m  / 100 * +r.total_matched));
+    const c1  = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_1m  / 100 * +r.total_matched));
     const newG = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.new_guests);
-
     ['heading2', 'subtitle2', 'chartWrap2'].forEach(id => document.getElementById(id).style.display = 'block');
     document.getElementById('legend2').style.display = 'flex';
-
     const chart2 = new Chart(document.getElementById('chart2'), {
       type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label: '12m returners', data: c12,  borderColor: '#3266ad', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yCount' },
-          { label: '6m returners',  data: c6,   borderColor: '#1D9E75', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yCount' },
-          { label: '3m returners',  data: c3,   borderColor: '#D85A30', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yCount' },
-          { label: '1m returners',  data: c1,   borderColor: '#888780', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yCount', borderDash: [4,3] },
-          { label: 'New guests',    data: newG, borderColor: '#BA7517', backgroundColor: 'rgba(186,117,23,0.05)', borderWidth: 1.5, borderDash: [5,4], pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: true, spanGaps: false, yAxisID: 'yNewCount' }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            ...TOOLTIP_STYLE,
-            callbacks: {
-              title: items => items[0].label,
-              label: item => `  ${item.dataset.label}: ${item.parsed.y != null ? Math.round(item.parsed.y) : 'n/a'}`
-            }
-          }
-        },
-        scales: {
-          x: { ticks: { maxTicksLimit: 14, maxRotation: 45, font: { size: 11 }, color: '#888' }, grid: { display: false } },
-          yCount: {
-            type: 'linear', position: 'left', min: 0,
-            ticks: { font: { size: 11 }, color: '#555' },
-            grid: { color: 'rgba(0,0,0,0.07)' },
-            title: { display: true, text: 'Reservations', font: { size: 11 }, color: '#555' }
-          },
-          yNewCount: {
-            type: 'linear', position: 'right', min: 0,
-            ticks: { font: { size: 11 }, color: '#BA7517' },
-            grid: { display: false },
-            title: { display: true, text: 'New guests', font: { size: 11 }, color: '#BA7517' }
-          }
-        }
-      }
+      data: { labels, datasets: [
+        { label: '12m returners', data: c12, borderColor: '#3266ad', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yCount' },
+        { label: '6m returners',  data: c6,  borderColor: '#1D9E75', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yCount' },
+        { label: '3m returners',  data: c3,  borderColor: '#D85A30', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yCount' },
+        { label: '1m returners',  data: c1,  borderColor: '#888790', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yCount', borderDash: [4,3] },
+        { label: 'New guests',    data: newG, borderColor: '#BA7517', backgroundColor: 'rgba(186,117,23,0.05)', borderWidth: 1.5, borderDash: [5,4], pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: true, spanGaps: false, yAxisID: 'yNewCount' }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: false }, tooltip: { ...TOOLTIP_STYLE, callbacks: { title: items => items[0].label, label: item => `  ${item.dataset.label}: ${item.parsed.y != null ? Math.round(item.parsed.y) : 'n/a'}` } } },
+        scales: { x: { ticks: { maxTicksLimit: 14, maxRotation: 45, font: { size: 11 }, color: '#888' }, grid: { display: false } },
+          yCount: { type: 'linear', position: 'left', min: 0, ticks: { font: { size: 11 }, color: '#555' }, grid: { color: 'rgba(0,0,0,0.07)' }, title: { display: true, text: 'Reservations', font: { size: 11 }, color: '#555' } },
+          yNewCount: { type: 'linear', position: 'right', min: 0, ticks: { font: { size: 11 }, color: '#BA7517' }, grid: { display: false }, title: { display: true, text: 'New guests', font: { size: 11 }, color: '#BA7517' } } } }
     });
-
     bindLegend('legend2', chart2);
 
-    // ── Chart 3: Total covers per month (bar) ──────────────────────────────────
-    const totalCovers = rows.map(r => +r.total_completed < LOW_VOL ? null : +r.total_completed);
-    const may2025Idx  = labels.indexOf('May 2025');
-
-    document.getElementById('heading3').style.display  = 'block';
-    document.getElementById('subtitle3').style.display = 'block';
-    document.getElementById('chartWrap3').style.display = 'block';
-
-    new Chart(document.getElementById('chart3'), {
+    const bdMap = {};
+    (bdRows || []).forEach(r => { bdMap[r.month] = r; });
+    const bdLabels   = rows.map(r => fmtLabel(r.month));
+    const diningData = rows.map(r => { const bd = bdMap[r.month]; return bd ? +bd.dining_covers : null; });
+    const barData    = rows.map(r => { const bd = bdMap[r.month]; return bd ? +bd.bar_covers : null; });
+    const may2025Idx = bdLabels.indexOf('May 2025');
+    ['heading3', 'subtitle3', 'chartWrap3'].forEach(id => document.getElementById(id).style.display = 'block');
+    document.getElementById('legend3').style.display = 'flex';
+    const chart3 = new Chart(document.getElementById('chart3'), {
       type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Total covers', data: totalCovers, backgroundColor: 'rgba(50,102,173,0.18)', borderColor: '#3266ad', borderWidth: 1.5, borderRadius: 3 }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
+      data: { labels: bdLabels, datasets: [
+        { label: 'Dining room', data: diningData, backgroundColor: 'rgba(50,102,173,0.7)', borderWidth: 0, borderRadius: 0, stack: 'covers' },
+        { label: 'Bar',         data: barData,    backgroundColor: 'rgba(29,158,117,0.7)',  borderWidth: 0, borderRadius: 2, stack: 'covers' }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
-          tooltip: {
-            ...TOOLTIP_STYLE,
-            callbacks: {
-              title: items => items[0].label,
-              label: item => `  Total covers: ${item.parsed.y != null ? Math.round(item.parsed.y) : 'n/a'}`
-            }
-          },
-          annotation: may2025Idx >= 0 ? {
-            annotations: {
-              may2025Line: {
-                type: 'line',
-                xMin: may2025Idx,
-                xMax: may2025Idx,
-                borderColor: 'rgba(160,60,60,0.55)',
-                borderWidth: 1.5,
-                borderDash: [4, 3],
-                label: {
-                  display: true,
-                  content: 'Bar covers recorded from this date',
-                  position: 'start',
-                  backgroundColor: 'rgba(160,60,60,0.07)',
-                  color: '#a03c3c',
-                  font: { size: 11 },
-                  padding: { x: 6, y: 4 },
-                  yAdjust: -8
-                }
-              }
-            }
-          } : {}
+          tooltip: { ...TOOLTIP_STYLE, callbacks: { title: items => items[0].label, label: item => `  ${item.dataset.label}: ${item.parsed.y != null ? Math.round(item.parsed.y).toLocaleString() : 'n/a'}` } },
+          annotation: may2025Idx >= 0 ? { annotations: { may2025Line: { type: 'line', xMin: may2025Idx, xMax: may2025Idx, borderColor: 'rgba(160,60,60,0.55)', borderWidth: 1.5, borderDash: [4,3], label: { display: true, content: 'Bar covers recorded from this date', position: 'start', backgroundColor: 'rgba(160,60,60,0.07)', color: '#a03c3c', font: { size: 11 }, padding: { x: 6, y: 4 }, yAdjust: -8 } } } } : {}
         },
-        scales: {
-          x: { ticks: { maxTicksLimit: 14, maxRotation: 45, font: { size: 11 }, color: '#888' }, grid: { display: false } },
-          y: {
-            type: 'linear', min: 0,
-            ticks: { font: { size: 11 }, color: '#555' },
-            grid: { color: 'rgba(0,0,0,0.07)' }
-          }
-        }
-      }
+        scales: { x: { stacked: true, ticks: { maxTicksLimit: 14, maxRotation: 45, font: { size: 11 }, color: '#888' }, grid: { display: false } },
+          y: { stacked: true, min: 0, ticks: { font: { size: 11 }, color: '#555', callback: v => v.toLocaleString() }, grid: { color: 'rgba(0,0,0,0.07)' }, title: { display: true, text: 'Covers', font: { size: 11 }, color: '#555' } } } }
     });
+    bindLegend('legend3', chart3);
 
+    if (pcRows && pcRows.length > 0) {
+      const maxCount = +pcRows[0].reservation_count;
+      const tbody = document.getElementById('postcodeTbody');
+      tbody.innerHTML = pcRows.slice(0, 15).map((r, i) => {
+        const pct    = Math.round(+r.reservation_count / maxCount * 100);
+        const suburb = SUBURB[r.postal_code] || '—';
+        return `<tr><td><span class="pc-rank">${i+1}</span></td><td>${suburb}</td><td style="color:#888">${r.postal_code}</td><td class="r">${Number(r.reservation_count).toLocaleString()}</td><td class="r">${Number(r.total_covers).toLocaleString()}</td><td><div class="pc-bar-wrap"><div class="pc-bar-bg"><div class="pc-bar-fill" style="width:${pct}%"></div></div></div></td></tr>`;
+      }).join('');
+      ['heading4', 'subtitle4', 'postcodeWrap'].forEach(id => document.getElementById(id).style.display = 'block');
+    }
   } catch (err) {
     document.getElementById('loading').style.display = 'none';
-    const el = document.getElementById('error');
-    el.style.display = 'block';
-    el.textContent = 'Could not load data: ' + err.message;
+    const el2 = document.getElementById('error');
+    el2.style.display = 'block';
+    el2.textContent = 'Could not load data: ' + err.message;
   }
 }
 
