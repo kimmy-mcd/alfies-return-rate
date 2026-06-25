@@ -11,6 +11,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; padding: 24px; max-width: 960px; margin: 0 auto; }
   h1 { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+  h2 { font-size: 15px; font-weight: 500; margin-bottom: 4px; margin-top: 40px; }
   .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
   .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
   .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; cursor: pointer; user-select: none; padding: 4px 10px 4px 6px; border-radius: 5px; border: 1.5px solid #e0e0e0; background: #fafafa; transition: opacity 0.15s, border-color 0.15s; }
@@ -22,7 +23,7 @@
   .chart-wrap { position: relative; width: 100%; height: 380px; }
   .loading { display: flex; align-items: center; justify-content: center; height: 380px; font-size: 14px; color: #888; }
   .error { color: #c0392b; font-size: 13px; padding: 12px; background: #fdf0ee; border-radius: 6px; margin-top: 12px; }
-  .footer { font-size: 11px; color: #aaa; margin-top: 10px; }
+  .footer { font-size: 11px; color: #aaa; margin-top: 16px; }
   .stats-row { display: flex; flex-direction: column; gap: 16px; margin-top: 24px; }
   .stats-pair { display: flex; gap: 16px; }
   .stat-card { flex: 1; border: 1px solid #e8e8e8; border-radius: 10px; padding: 18px 22px; background: #fafafa; }
@@ -40,23 +41,43 @@
 <h1>Alfies &mdash; guest return rate</h1>
 <p class="subtitle">Completed reservations only &middot; guests matched by mobile number &middot; updated live from Supabase</p>
 
-<div class="legend" id="legend">
+<!-- ── Chart 1: Return rate % + New guests % ───────────────────────────────── -->
+<div class="legend" id="legend1">
   <label class="legend-item" data-idx="0"><input type="checkbox" checked><span class="swatch" style="background:#3266ad"></span> 12m return %</label>
   <label class="legend-item" data-idx="1"><input type="checkbox" checked><span class="swatch" style="background:#1D9E75"></span> 6m return %</label>
   <label class="legend-item" data-idx="2"><input type="checkbox" checked><span class="swatch" style="background:#D85A30"></span> 3m return %</label>
   <label class="legend-item" data-idx="3"><input type="checkbox" checked><span class="swatch" style="background:#888780"></span> 1m return %</label>
-  <label class="legend-item" data-idx="4"><input type="checkbox" checked><span class="swatch swatch-dashed" style="border-color:#111;width:26px;"></span> Total reservations (right)</label>
-  <label class="legend-item" data-idx="5"><input type="checkbox" checked><span class="swatch swatch-dashed" style="border-color:#BA7517;width:26px;"></span> New guests (right)</label>
+  <label class="legend-item" data-idx="4"><input type="checkbox" checked><span class="swatch swatch-dashed" style="border-color:#BA7517;width:26px;"></span> New guests % (right)</label>
 </div>
-
-<div id="loading" class="loading">Loading dataâ¦</div>
-<div class="chart-wrap" id="chartWrap" style="display:none;">
-  <canvas id="chart"></canvas>
+<div id="loading" class="loading">Loading data&hellip;</div>
+<div class="chart-wrap" id="chartWrap1" style="display:none;">
+  <canvas id="chart1"></canvas>
 </div>
 <div id="error" style="display:none;" class="error"></div>
 <div id="stats" class="stats-row" style="display:none;"></div>
 
-<p class="footer">Return rate = % of completed reservations where guest's mobile had appeared in a prior completed reservation. New guest = first-ever appearance of that mobile. Data from September 2023 onwards.</p>
+<!-- ── Chart 2: Absolute guest counts by return window ──────────────────────── -->
+<h2 id="heading2" style="display:none;">Guest volumes by return window</h2>
+<p class="subtitle" id="subtitle2" style="display:none;">Number of guests each month &middot; split by how recently they last visited &middot; new guests shown for comparison</p>
+<div class="legend" id="legend2" style="display:none;">
+  <label class="legend-item" data-idx="0"><input type="checkbox" checked><span class="swatch" style="background:#3266ad"></span> 12m returners</label>
+  <label class="legend-item" data-idx="1"><input type="checkbox" checked><span class="swatch" style="background:#1D9E75"></span> 6m returners</label>
+  <label class="legend-item" data-idx="2"><input type="checkbox" checked><span class="swatch" style="background:#D85A30"></span> 3m returners</label>
+  <label class="legend-item" data-idx="3"><input type="checkbox" checked><span class="swatch" style="background:#888780"></span> 1m returners</label>
+  <label class="legend-item" data-idx="4"><input type="checkbox" checked><span class="swatch swatch-dashed" style="border-color:#BA7517;width:26px;"></span> New guests</label>
+</div>
+<div class="chart-wrap" id="chartWrap2" style="display:none;">
+  <canvas id="chart2"></canvas>
+</div>
+
+<!-- ── Chart 3: Total covers per month ──────────────────────────────────────── -->
+<h2 id="heading3" style="display:none;">Total covers per month</h2>
+<p class="subtitle" id="subtitle3" style="display:none;">All completed reservations &middot; any guest status</p>
+<div class="chart-wrap" id="chartWrap3" style="display:none;">
+  <canvas id="chart3"></canvas>
+</div>
+
+<p class="footer">Return rate = % of completed reservations where guest&rsquo;s mobile had appeared in a prior completed reservation. New guest = first-ever appearance of that mobile. New guest % = new guests &divide; all mobile-matched reservations that month. Data from September 2023 onwards.</p>
 
 <script>
 const SUPABASE_URL  = 'https://fppqqcpgpbdqshhldpth.supabase.co';
@@ -68,6 +89,24 @@ function fmtLabel(ym) {
   return MONTHS[+m - 1] + ' ' + y;
 }
 
+function bindLegend(legendId, chartInstance) {
+  document.getElementById(legendId).addEventListener('change', e => {
+    const item = e.target.closest('.legend-item');
+    const idx  = parseInt(item.dataset.idx, 10);
+    const on   = e.target.checked;
+    chartInstance.data.datasets[idx].hidden = !on;
+    item.classList.toggle('off', !on);
+    chartInstance.update();
+  });
+}
+
+const TOOLTIP_STYLE = {
+  backgroundColor: 'rgba(20,20,20,0.88)',
+  titleFont: { size: 13, weight: '600' },
+  bodyFont: { size: 12 },
+  padding: 12
+};
+
 async function load() {
   try {
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -75,81 +114,89 @@ async function load() {
     if (error) throw new Error(error.message);
     if (!rows || rows.length === 0) throw new Error('No data returned');
 
-    // ââ KPI stats ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-    const now = new Date();
+    const LOW_VOL = 100;
+    const labels  = rows.map(r => fmtLabel(r.month));
+
+    // ── KPI stat cards ─────────────────────────────────────────────────────────
+    const now          = new Date();
     const currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     const completeRows = rows.filter(r => r.month < currentMonth && +r.total_matched >= 50);
     if (completeRows.length > 0) {
-      const latestRow   = completeRows[completeRows.length - 1];
-      const latestPct   = +latestRow.pct_12m;
-      const latestLabel = fmtLabel(latestRow.month);
-      const priorRows   = completeRows.slice(Math.max(0, completeRows.length - 13), completeRows.length - 1);
-      const priorAvg    = priorRows.length > 0 ? priorRows.reduce((s, r) => s + +r.pct_12m, 0) / priorRows.length : null;
-      const delta       = priorAvg !== null ? latestPct - priorAvg : null;
-      const deltaClass  = delta === null ? 'flat' : delta > 0.5 ? 'up' : delta < -0.5 ? 'down' : 'flat';
-      const deltaSign   = delta > 0 ? '+' : '';
-      const priorPeriodLabel = priorRows.length > 0 ? fmtLabel(priorRows[0].month) + ' â ' + fmtLabel(priorRows[priorRows.length - 1].month) : '';
+      const latestRow  = completeRows[completeRows.length - 1];
+      const latestPct  = +latestRow.pct_12m;
+      const latestLbl  = fmtLabel(latestRow.month);
+      const priorRows  = completeRows.slice(Math.max(0, completeRows.length - 13), completeRows.length - 1);
+      const priorAvg   = priorRows.length > 0 ? priorRows.reduce((s, r) => s + +r.pct_12m, 0) / priorRows.length : null;
+      const delta      = priorAvg !== null ? latestPct - priorAvg : null;
+      const dCls       = delta === null ? 'flat' : delta > 0.5 ? 'up' : delta < -0.5 ? 'down' : 'flat';
+      const dSign      = delta > 0 ? '+' : '';
+      const priorLbl   = priorRows.length > 0 ? fmtLabel(priorRows[0].month) + ' – ' + fmtLabel(priorRows[priorRows.length - 1].month) : '';
 
-      const latestNewPct  = +latestRow.total_matched > 0 ? (+latestRow.new_guests / +latestRow.total_matched * 100) : null;
-      const priorNewAvg   = priorRows.length > 0 ? priorRows.reduce((s, r) => s + (+r.total_matched > 0 ? +r.new_guests / +r.total_matched * 100 : 0), 0) / priorRows.length : null;
-      const newDelta      = latestNewPct !== null && priorNewAvg !== null ? latestNewPct - priorNewAvg : null;
-      const newDeltaClass = newDelta === null ? 'flat' : newDelta > 0.5 ? 'up' : newDelta < -0.5 ? 'down' : 'flat';
-      const newDeltaSign  = newDelta > 0 ? '+' : '';
+      // New guests % = new / (new + matched) = new / mobile-matched total
+      function newGuestPct(r) {
+        const mt = +r.new_guests + +r.total_matched;
+        return mt > 0 ? +r.new_guests / mt * 100 : null;
+      }
+      const latestNewPct = newGuestPct(latestRow);
+      const priorNewAvg  = priorRows.length > 0
+        ? priorRows.reduce((s, r) => s + (newGuestPct(r) ?? 0), 0) / priorRows.length
+        : null;
+      const newDelta  = latestNewPct !== null && priorNewAvg !== null ? latestNewPct - priorNewAvg : null;
+      const ndCls     = newDelta === null ? 'flat' : newDelta > 0.5 ? 'up' : newDelta < -0.5 ? 'down' : 'flat';
+      const ndSign    = newDelta > 0 ? '+' : '';
 
       document.getElementById('stats').style.display = 'flex';
       document.getElementById('stats').innerHTML = `
         <div class="stats-pair">
           <div class="stat-card">
-            <div class="stat-label">12-MONTH RETURN RATE &middot; ${latestLabel.toUpperCase()}</div>
+            <div class="stat-label">12-MONTH RETURN RATE &middot; ${latestLbl.toUpperCase()}</div>
             <div class="stat-value">${latestPct.toFixed(1)}<span style="font-size:22px;font-weight:400;color:#888">%</span></div>
-            ${delta !== null ? `<span class="stat-delta ${deltaClass}">${deltaSign}${delta.toFixed(1)}pp vs prior year avg</span>` : ''}
+            ${delta !== null ? `<span class="stat-delta ${dCls}">${dSign}${delta.toFixed(1)}pp vs prior year avg</span>` : ''}
           </div>
           <div class="stat-card">
             <div class="stat-label">12-MONTH RETURN RATE &middot; PRIOR YEAR AVERAGE</div>
             <div class="stat-value">${priorAvg !== null ? priorAvg.toFixed(1) : '&ndash;'}<span style="font-size:22px;font-weight:400;color:#888">%</span></div>
-            ${priorPeriodLabel ? `<div class="stat-sub">${priorPeriodLabel}</div>` : ''}
+            ${priorLbl ? `<div class="stat-sub">${priorLbl}</div>` : ''}
           </div>
         </div>
         <div class="stats-pair">
           <div class="stat-card">
-            <div class="stat-label">NEW GUESTS &middot; ${latestLabel.toUpperCase()}</div>
+            <div class="stat-label">NEW GUESTS &middot; ${latestLbl.toUpperCase()}</div>
             <div class="stat-value">${latestNewPct !== null ? latestNewPct.toFixed(1) : '&ndash;'}<span style="font-size:22px;font-weight:400;color:#888">%</span></div>
-            ${newDelta !== null ? `<span class="stat-delta ${newDeltaClass}">${newDeltaSign}${newDelta.toFixed(1)}pp vs prior year avg</span>` : ''}
+            ${newDelta !== null ? `<span class="stat-delta ${ndCls}">${ndSign}${newDelta.toFixed(1)}pp vs prior year avg</span>` : ''}
           </div>
           <div class="stat-card">
             <div class="stat-label">NEW GUESTS &middot; PRIOR YEAR AVERAGE</div>
             <div class="stat-value">${priorNewAvg !== null ? priorNewAvg.toFixed(1) : '&ndash;'}<span style="font-size:22px;font-weight:400;color:#888">%</span></div>
-            ${priorPeriodLabel ? `<div class="stat-sub">${priorPeriodLabel}</div>` : ''}
+            ${priorLbl ? `<div class="stat-sub">${priorLbl}</div>` : ''}
           </div>
         </div>
       `;
     }
 
-    // ââ Chart ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-    const LOW_VOL = 100;
-    const labels  = rows.map(r => fmtLabel(r.month));
-    const d12     = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.pct_12m);
-    const d6      = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.pct_6m);
-    const d3      = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.pct_3m);
-    const d1      = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.pct_1m);
-    const total   = rows.map(r => +r.total_completed < LOW_VOL ? null : +r.total_completed);
-    const newG    = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.new_guests);
+    // ── Chart 1: Return rate % lines + new guests % (right axis) ──────────────
+    const d12      = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.pct_12m);
+    const d6       = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.pct_6m);
+    const d3       = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.pct_3m);
+    const d1       = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.pct_1m);
+    const newGPct  = rows.map(r => {
+      const mt = +r.new_guests + +r.total_matched;
+      return mt < LOW_VOL ? null : +r.new_guests / mt * 100;
+    });
 
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('chartWrap').style.display = 'block';
+    document.getElementById('loading').style.display  = 'none';
+    document.getElementById('chartWrap1').style.display = 'block';
 
-    const chart = new Chart(document.getElementById('chart'), {
+    const chart1 = new Chart(document.getElementById('chart1'), {
       type: 'line',
-      plugins: [],
       data: {
         labels,
         datasets: [
-          { label: '12m return %',       data: d12,   borderColor: '#3266ad', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct' },
-          { label: '6m return %',        data: d6,    borderColor: '#1D9E75', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct' },
-          { label: '3m return %',        data: d3,    borderColor: '#D85A30', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct' },
-          { label: '1m return %',        data: d1,    borderColor: '#888780', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct', borderDash: [4,3] },
-          { label: 'Total reservations', data: total, borderColor: '#111111', backgroundColor: 'rgba(0,0,0,0.03)', borderWidth: 2, borderDash: [6,3], pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: true, spanGaps: false, yAxisID: 'yCount' },
-          { label: 'New guests',         data: newG,  borderColor: '#BA7517', backgroundColor: 'rgba(186,117,23,0.05)', borderWidth: 1.5, borderDash: [5,4], pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: true, spanGaps: false, yAxisID: 'yCount' }
+          { label: '12m return %', data: d12,     borderColor: '#3266ad', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct' },
+          { label: '6m return %',  data: d6,      borderColor: '#1D9E75', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct' },
+          { label: '3m return %',  data: d3,      borderColor: '#D85A30', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct' },
+          { label: '1m return %',  data: d1,      borderColor: '#888780', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct', borderDash: [4,3] },
+          { label: 'New guests %', data: newGPct, borderColor: '#BA7517', backgroundColor: 'rgba(186,117,23,0.05)', borderWidth: 1.5, borderDash: [5,4], pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: true, spanGaps: false, yAxisID: 'yNewPct' }
         ]
       },
       options: {
@@ -159,48 +206,121 @@ async function load() {
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: 'rgba(20,20,20,0.88)',
-            titleFont: { size: 13, weight: '600' },
-            bodyFont: { size: 12 },
-            padding: 12,
+            ...TOOLTIP_STYLE,
             callbacks: {
               title: items => items[0].label,
-              label: item => {
-                if (item.dataset.yAxisID === 'yCount')
-                  return `  ${item.dataset.label}: ${item.parsed.y != null ? Math.round(item.parsed.y) : 'n/a'}`;
-                return `  ${item.dataset.label}: ${item.parsed.y != null ? item.parsed.y.toFixed(1) + '%' : 'n/a'}`;
-              }
+              label: item => `  ${item.dataset.label}: ${item.parsed.y != null ? item.parsed.y.toFixed(1) + '%' : 'n/a'}`
             }
           }
         },
         scales: {
-          x: {
-            ticks: { maxTicksLimit: 14, maxRotation: 45, font: { size: 11 }, color: '#888' },
-            grid: { display: false }
-          },
+          x: { ticks: { maxTicksLimit: 14, maxRotation: 45, font: { size: 11 }, color: '#888' }, grid: { display: false } },
           yPct: {
-            type: 'linear', position: 'left', min: 0, max: 35,
+            type: 'linear', position: 'left', min: 0, max: 40,
             ticks: { callback: v => v + '%', font: { size: 11 }, color: '#555', stepSize: 5 },
-            grid: { color: 'rgba(0,0,0,0.07)' }
+            grid: { color: 'rgba(0,0,0,0.07)' },
+            title: { display: true, text: 'Return rate', font: { size: 11 }, color: '#555' }
           },
-          yCount: {
-            type: 'linear', position: 'right', min: 0, max: 4000,
-            ticks: { callback: v => v, font: { size: 11 }, color: '#888', stepSize: 500 },
-            grid: { display: false }
+          yNewPct: {
+            type: 'linear', position: 'right', min: 0, max: 100,
+            ticks: { callback: v => v + '%', font: { size: 11 }, color: '#BA7517', stepSize: 20 },
+            grid: { display: false },
+            title: { display: true, text: 'New guests %', font: { size: 11 }, color: '#BA7517' }
           }
         }
       }
     });
 
-    // ââ Toggle legend items âââââââââââââââââââââââââââââââââââââââââââââââââââ
-    document.getElementById('legend').addEventListener('change', e => {
-      const label = e.target.closest('.legend-item');
-      const idx   = parseInt(label.dataset.idx, 10);
-      const ds    = chart.data.datasets[idx];
-      const on    = e.target.checked;
-      ds.hidden = !on;
-      label.classList.toggle('off', !on);
-      chart.update();
+    bindLegend('legend1', chart1);
+
+    // ── Chart 2: Absolute guest counts by return window ────────────────────────
+    // Counts derived client-side: count_Xm = (pct_Xm / 100) * total_matched
+    const c12  = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_12m / 100 * +r.total_matched));
+    const c6   = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_6m  / 100 * +r.total_matched));
+    const c3   = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_3m  / 100 * +r.total_matched));
+    const c1   = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_1m  / 100 * +r.total_matched));
+    const newG = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.new_guests);
+
+    ['heading2', 'subtitle2', 'chartWrap2'].forEach(id => document.getElementById(id).style.display = id === 'subtitle2' ? 'block' : id === 'chartWrap2' ? 'block' : 'block');
+    document.getElementById('legend2').style.display = 'flex';
+
+    const chart2 = new Chart(document.getElementById('chart2'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: '12m returners', data: c12,  borderColor: '#3266ad', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false },
+          { label: '6m returners',  data: c6,   borderColor: '#1D9E75', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false },
+          { label: '3m returners',  data: c3,   borderColor: '#D85A30', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false },
+          { label: '1m returners',  data: c1,   borderColor: '#888780', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, borderDash: [4,3] },
+          { label: 'New guests',    data: newG, borderColor: '#BA7517', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, borderDash: [5,4] }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            ...TOOLTIP_STYLE,
+            callbacks: {
+              title: items => items[0].label,
+              label: item => `  ${item.dataset.label}: ${item.parsed.y != null ? Math.round(item.parsed.y) : 'n/a'}`
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 14, maxRotation: 45, font: { size: 11 }, color: '#888' }, grid: { display: false } },
+          y: {
+            type: 'linear', min: 0,
+            ticks: { font: { size: 11 }, color: '#555' },
+            grid: { color: 'rgba(0,0,0,0.07)' }
+          }
+        }
+      }
+    });
+
+    bindLegend('legend2', chart2);
+
+    // ── Chart 3: Total covers per month (bar) ──────────────────────────────────
+    const totalCovers = rows.map(r => +r.total_completed < LOW_VOL ? null : +r.total_completed);
+
+    document.getElementById('heading3').style.display  = 'block';
+    document.getElementById('subtitle3').style.display = 'block';
+    document.getElementById('chartWrap3').style.display = 'block';
+
+    new Chart(document.getElementById('chart3'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Total covers', data: totalCovers, backgroundColor: 'rgba(50,102,173,0.18)', borderColor: '#3266ad', borderWidth: 1.5, borderRadius: 3 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            ...TOOLTIP_STYLE,
+            callbacks: {
+              title: items => items[0].label,
+              label: item => `  Total covers: ${item.parsed.y != null ? Math.round(item.parsed.y) : 'n/a'}`
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 14, maxRotation: 45, font: { size: 11 }, color: '#888' }, grid: { display: false } },
+          y: {
+            type: 'linear', min: 0,
+            ticks: { font: { size: 11 }, color: '#555' },
+            grid: { color: 'rgba(0,0,0,0.07)' }
+          }
+        }
+      }
     });
 
   } catch (err) {
