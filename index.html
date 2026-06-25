@@ -58,13 +58,13 @@
 
 <!-- ── Chart 2: Absolute guest counts by return window ──────────────────────── -->
 <h2 id="heading2" style="display:none;">Guest volumes by return window</h2>
-<p class="subtitle" id="subtitle2" style="display:none;">Number of guests each month &middot; split by how recently they last visited &middot; new guests shown for comparison</p>
+<p class="subtitle" id="subtitle2" style="display:none;">Return rate % by window &middot; new guest count on right axis</p>
 <div class="legend" id="legend2" style="display:none;">
-  <label class="legend-item" data-idx="0"><input type="checkbox" checked><span class="swatch" style="background:#3266ad"></span> 12m returners</label>
-  <label class="legend-item" data-idx="1"><input type="checkbox" checked><span class="swatch" style="background:#1D9E75"></span> 6m returners</label>
-  <label class="legend-item" data-idx="2"><input type="checkbox" checked><span class="swatch" style="background:#D85A30"></span> 3m returners</label>
-  <label class="legend-item" data-idx="3"><input type="checkbox" checked><span class="swatch" style="background:#888780"></span> 1m returners</label>
-  <label class="legend-item" data-idx="4"><input type="checkbox" checked><span class="swatch swatch-dashed" style="border-color:#BA7517;width:26px;"></span> New guests</label>
+  <label class="legend-item" data-idx="0"><input type="checkbox" checked><span class="swatch" style="background:#3266ad"></span> 12m return %</label>
+  <label class="legend-item" data-idx="1"><input type="checkbox" checked><span class="swatch" style="background:#1D9E75"></span> 6m return %</label>
+  <label class="legend-item" data-idx="2"><input type="checkbox" checked><span class="swatch" style="background:#D85A30"></span> 3m return %</label>
+  <label class="legend-item" data-idx="3"><input type="checkbox" checked><span class="swatch" style="background:#888780"></span> 1m return %</label>
+  <label class="legend-item" data-idx="4"><input type="checkbox" checked><span class="swatch swatch-dashed" style="border-color:#BA7517;width:26px;"></span> New guests (right)</label>
 </div>
 <div class="chart-wrap" id="chartWrap2" style="display:none;">
   <canvas id="chart2"></canvas>
@@ -233,15 +233,10 @@ async function load() {
 
     bindLegend('legend1', chart1);
 
-    // ── Chart 2: Absolute guest counts by return window ────────────────────────
-    // Counts derived client-side: count_Xm = (pct_Xm / 100) * total_matched
-    const c12  = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_12m / 100 * +r.total_matched));
-    const c6   = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_6m  / 100 * +r.total_matched));
-    const c3   = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_3m  / 100 * +r.total_matched));
-    const c1   = rows.map(r => +r.total_matched < LOW_VOL ? null : Math.round(+r.pct_1m  / 100 * +r.total_matched));
+    // ── Chart 2: Return rate % by window + new guest count (right axis) ──────────
     const newG = rows.map(r => +r.total_matched < LOW_VOL ? null : +r.new_guests);
 
-    ['heading2', 'subtitle2', 'chartWrap2'].forEach(id => document.getElementById(id).style.display = id === 'subtitle2' ? 'block' : id === 'chartWrap2' ? 'block' : 'block');
+    ['heading2', 'subtitle2', 'chartWrap2'].forEach(id => document.getElementById(id).style.display = 'block');
     document.getElementById('legend2').style.display = 'flex';
 
     const chart2 = new Chart(document.getElementById('chart2'), {
@@ -249,11 +244,11 @@ async function load() {
       data: {
         labels,
         datasets: [
-          { label: '12m returners', data: c12,  borderColor: '#3266ad', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false },
-          { label: '6m returners',  data: c6,   borderColor: '#1D9E75', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false },
-          { label: '3m returners',  data: c3,   borderColor: '#D85A30', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false },
-          { label: '1m returners',  data: c1,   borderColor: '#888780', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, borderDash: [4,3] },
-          { label: 'New guests',    data: newG, borderColor: '#BA7517', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, borderDash: [5,4] }
+          { label: '12m return %', data: d12,  borderColor: '#3266ad', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct2' },
+          { label: '6m return %',  data: d6,   borderColor: '#1D9E75', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct2' },
+          { label: '3m return %',  data: d3,   borderColor: '#D85A30', borderWidth: 2,   pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct2' },
+          { label: '1m return %',  data: d1,   borderColor: '#888780', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false, spanGaps: false, yAxisID: 'yPct2', borderDash: [4,3] },
+          { label: 'New guests',   data: newG, borderColor: '#BA7517', backgroundColor: 'rgba(186,117,23,0.05)', borderWidth: 1.5, borderDash: [5,4], pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: true, spanGaps: false, yAxisID: 'yNewCount' }
         ]
       },
       options: {
@@ -266,16 +261,27 @@ async function load() {
             ...TOOLTIP_STYLE,
             callbacks: {
               title: items => items[0].label,
-              label: item => `  ${item.dataset.label}: ${item.parsed.y != null ? Math.round(item.parsed.y) : 'n/a'}`
+              label: item => {
+                if (item.dataset.yAxisID === 'yNewCount')
+                  return `  ${item.dataset.label}: ${item.parsed.y != null ? Math.round(item.parsed.y) : 'n/a'}`;
+                return `  ${item.dataset.label}: ${item.parsed.y != null ? item.parsed.y.toFixed(1) + '%' : 'n/a'}`;
+              }
             }
           }
         },
         scales: {
           x: { ticks: { maxTicksLimit: 14, maxRotation: 45, font: { size: 11 }, color: '#888' }, grid: { display: false } },
-          y: {
-            type: 'linear', min: 0,
-            ticks: { font: { size: 11 }, color: '#555' },
-            grid: { color: 'rgba(0,0,0,0.07)' }
+          yPct2: {
+            type: 'linear', position: 'left', min: 0, max: 40,
+            ticks: { callback: v => v + '%', font: { size: 11 }, color: '#555', stepSize: 5 },
+            grid: { color: 'rgba(0,0,0,0.07)' },
+            title: { display: true, text: 'Return rate', font: { size: 11 }, color: '#555' }
+          },
+          yNewCount: {
+            type: 'linear', position: 'right', min: 0,
+            ticks: { font: { size: 11 }, color: '#BA7517' },
+            grid: { display: false },
+            title: { display: true, text: 'New guests', font: { size: 11 }, color: '#BA7517' }
           }
         }
       }
