@@ -223,7 +223,7 @@ async function load() {
       const priorAvg   = priorRows.length > 0 ? priorRows.reduce((s, r) => s + +r.pct_12m, 0) / priorRows.length : null;
       const delta      = priorAvg !== null ? latestPct - priorAvg : null;
       const dCls       = delta === null ? 'flat' : delta > 0.5 ? 'up' : delta < -0.5 ? 'down' : 'flat';
-      const dSIgn      = delta > 0 ? '+' : '';
+      const dSign      = delta > 0 ? '+' : '';
       const priorLbl   = priorRows.length > 0 ? fmtLabel(priorRows[0].month) + ' – ' + fmtLabel(priorRows[priorRows.length - 1].month) : '';
 
       function newGuestPct(r) {
