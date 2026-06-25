@@ -6,6 +6,7 @@
 <title>Alfies &mdash; Return Rate</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3/dist/chartjs-plugin-annotation.min.js"></script>
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -291,6 +292,7 @@ async function load() {
 
     // ── Chart 3: Total covers per month (bar) ──────────────────────────────────
     const totalCovers = rows.map(r => +r.total_completed < LOW_VOL ? null : +r.total_completed);
+    const may2025Idx  = labels.indexOf('May 2025');
 
     document.getElementById('heading3').style.display  = 'block';
     document.getElementById('subtitle3').style.display = 'block';
@@ -316,7 +318,29 @@ async function load() {
               title: items => items[0].label,
               label: item => `  Total covers: ${item.parsed.y != null ? Math.round(item.parsed.y) : 'n/a'}`
             }
-          }
+          },
+          annotation: may2025Idx >= 0 ? {
+            annotations: {
+              may2025Line: {
+                type: 'line',
+                xMin: may2025Idx,
+                xMax: may2025Idx,
+                borderColor: 'rgba(160,60,60,0.55)',
+                borderWidth: 1.5,
+                borderDash: [4, 3],
+                label: {
+                  display: true,
+                  content: 'SevenRooms recording begins',
+                  position: 'start',
+                  backgroundColor: 'rgba(160,60,60,0.07)',
+                  color: '#a03c3c',
+                  font: { size: 11 },
+                  padding: { x: 6, y: 4 },
+                  yAdjust: -8
+                }
+              }
+            }
+          } : {}
         },
         scales: {
           x: { ticks: { maxTicksLimit: 14, maxRotation: 45, font: { size: 11 }, color: '#888' }, grid: { display: false } },
