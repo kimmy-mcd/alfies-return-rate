@@ -12,8 +12,11 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; padding: 24px; max-width: 960px; margin: 0 auto; }
   h1 { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
   .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
-  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; font-size: 12px; color: #555; }
-  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; cursor: pointer; user-select: none; padding: 4px 10px 4px 6px; border-radius: 5px; border: 1.5px solid #e0e0e0; background: #fafafa; transition: opacity 0.15s, border-color 0.15s; }
+  .legend-item:hover { border-color: #bbb; }
+  .legend-item.off { opacity: 0.38; }
+  .legend-item input[type="checkbox"] { accent-color: currentColor; width: 13px; height: 13px; cursor: pointer; flex-shrink: 0; }
   .swatch { width: 26px; height: 3px; display: inline-block; }
   .swatch-dashed { border-top: 2px dashed; height: 0; margin-top: 1px; }
   .chart-wrap { position: relative; width: 100%; height: 380px; }
@@ -37,13 +40,13 @@
 <h1>Alfies â guest return rate</h1>
 <p class="subtitle">Completed reservations only &middot; guests matched by mobile number &middot; updated live from Supabase</p>
 
-<div class="legend">
-  <span class="legend-item"><span class="swatch" style="background:#3266ad"></span> 12m return %</span>
-  <span class="legend-item"><span class="swatch" style="background:#1D9E75"></span> 6m return %</span>
-  <span class="legend-item"><span class="swatch" style="background:#D85A30"></span> 3m return %</span>
-  <span class="legend-item"><span class="swatch" style="background:#888780"></span> 1m return %</span>
-  <span class="legend-item"><span class="swatch swatch-dashed" style="border-color:#111;width:26px;"></span> Total reservations (right)</span>
-  <span class="legend-item"><span class="swatch swatch-dashed" style="border-color:#BA7517;width:26px;"></span> New guests (right)</span>
+<div class="legend" id="legend">
+  <label class="legend-item" data-idx="0"><input type="checkbox" checked><span class="swatch" style="background:#3266ad"></span> 12m return %</label>
+  <label class="legend-item" data-idx="1"><input type="checkbox" checked><span class="swatch" style="background:#1D9E75"></span> 6m return %</label>
+  <label class="legend-item" data-idx="2"><input type="checkbox" checked><span class="swatch" style="background:#D85A30"></span> 3m return %</label>
+  <label class="legend-item" data-idx="3"><input type="checkbox" checked><span class="swatch" style="background:#888780"></span> 1m return %</label>
+  <label class="legend-item" data-idx="4"><input type="checkbox" checked><span class="swatch swatch-dashed" style="border-color:#111;width:26px;"></span> Total reservations (right)</label>
+  <label class="legend-item" data-idx="5"><input type="checkbox" checked><span class="swatch swatch-dashed" style="border-color:#BA7517;width:26px;"></span> New guests (right)</label>
 </div>
 
 <div id="loading" class="loading">Loading dataâ¦</div>
@@ -135,7 +138,7 @@ async function load() {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('chartWrap').style.display = 'block';
 
-    new Chart(document.getElementById('chart'), {
+    const chart = new Chart(document.getElementById('chart'), {
       type: 'line',
       plugins: [],
       data: {
@@ -187,6 +190,17 @@ async function load() {
           }
         }
       }
+    });
+
+    // ââ Toggle legend items âââââââââââââââââââââââââââââââââââââââââââââââââââ
+    document.getElementById('legend').addEventListener('change', e => {
+      const label = e.target.closest('.legend-item');
+      const idx   = parseInt(label.dataset.idx, 10);
+      const ds    = chart.data.datasets[idx];
+      const on    = e.target.checked;
+      ds.hidden = !on;
+      label.classList.toggle('off', !on);
+      chart.update();
     });
 
   } catch (err) {
